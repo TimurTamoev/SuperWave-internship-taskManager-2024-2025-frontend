@@ -24,9 +24,25 @@ export const getCurrentUser = async (): Promise<User> => {
       Authorization: `Bearer ${token}`,
     },
   });
+  
+  localStorage.setItem('user_data', JSON.stringify(response.data));
+  
   return response.data;
+};
+
+export const getCachedUser = (): User | null => {
+  const userData = localStorage.getItem('user_data');
+  if (userData) {
+    try {
+      return JSON.parse(userData);
+    } catch {
+      return null;
+    }
+  }
+  return null;
 };
 
 export const logout = () => {
   localStorage.removeItem('access_token');
+  localStorage.removeItem('user_data');
 };

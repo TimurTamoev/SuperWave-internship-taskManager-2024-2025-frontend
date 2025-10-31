@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { User } from '../types/user';
 import { EmailMessage } from '../types/email';
 import { emailService } from '../services/emailService';
+import { emailCache } from '../utils/emailCache';
 import EmailsPage from './EmailsPage';
 
 interface DashboardProps {
@@ -13,20 +14,30 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
   const [currentView, setCurrentView] = useState<'dashboard' | 'emails'>('dashboard');
   const [emails, setEmails] = useState<EmailMessage[]>([]);
   const [loadingEmails, setLoadingEmails] = useState(false);
+  const [refreshingEmails, setRefreshingEmails] = useState(false);
   const [selectedEmail, setSelectedEmail] = useState<EmailMessage | null>(null);
 
   useEffect(() => {
     const loadInitialEmails = async () => {
-      setLoadingEmails(true);
+      const cachedEmails = emailCache.get();
+      if (cachedEmails && cachedEmails.length > 0) {
+        setEmails(cachedEmails.slice(0, 12));
+        setRefreshingEmails(true);
+      } else {
+        setLoadingEmails(true);
+      }
+
       try {
         const response = await emailService.fetchEmails({ limit: 12 });
         if (response.success) {
           setEmails(response.emails);
+          emailCache.save(response.emails);
         }
       } catch (error) {
         console.error('Failed to load emails:', error);
       } finally {
         setLoadingEmails(false);
+        setRefreshingEmails(false);
       }
     };
 
@@ -120,7 +131,14 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
 
             <div className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow flex flex-col h-full overflow-hidden">
               <div className="flex items-center justify-between mb-4 flex-shrink-0">
-                <h2 className="text-lg font-semibold text-gray-800">Почта</h2>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-lg font-semibold text-gray-800">Почта</h2>
+                  {refreshingEmails && (
+                    <div className="relative w-4 h-4">
+                      <div className="absolute top-0 left-0 w-full h-full border-2 border-green-500 rounded-full border-t-transparent animate-spin"></div>
+                    </div>
+                  )}
+                </div>
                 <span className="bg-green-100 text-green-700 text-xs font-medium px-2.5 py-1 rounded-full">
                   {emails.length}
                 </span>

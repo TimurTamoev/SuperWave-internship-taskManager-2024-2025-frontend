@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { User } from '../types/user';
 import { EmailMessage } from '../types/email';
 import { emailService } from '../services/emailService';
+import { emailCache } from '../utils/emailCache';
 
 interface EmailsPageProps {
   user: User;
@@ -13,6 +14,7 @@ export default function EmailsPage({ user, onBack, initialSelectedEmail }: Email
   const [emails, setEmails] = useState<EmailMessage[]>([]);
   const [loadingEmails, setLoadingEmails] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedEmail, setSelectedEmail] = useState<EmailMessage | null>(initialSelectedEmail || null);
@@ -21,7 +23,7 @@ export default function EmailsPage({ user, onBack, initialSelectedEmail }: Email
   const emailsPerPage = 10;
 
   useEffect(() => {
-    handleLoadEmails();
+    handleLoadEmails(true);
   }, []);
 
   useEffect(() => {
@@ -30,9 +32,30 @@ export default function EmailsPage({ user, onBack, initialSelectedEmail }: Email
     }
   }, [initialSelectedEmail]);
 
-  const handleLoadEmails = async (limit: number = emailLimit) => {
-    setLoadingEmails(true);
+  const handleLoadEmails = async (useCache: boolean = false, limit: number = emailLimit) => {
     setEmailError(null);
+    
+    if (useCache) {
+      const cachedEmails = emailCache.get();
+      if (cachedEmails && cachedEmails.length > 0) {
+        const limitedEmails = cachedEmails.slice(0, limit);
+        setEmails(limitedEmails);
+        setHasMore(cachedEmails.length >= limit);
+        setRefreshing(true);
+        
+        if (initialSelectedEmail) {
+          const emailIndex = limitedEmails.findIndex(e => e.uid === initialSelectedEmail.uid);
+          if (emailIndex !== -1) {
+            const pageNumber = Math.floor(emailIndex / emailsPerPage) + 1;
+            setCurrentPage(pageNumber);
+          }
+        }
+      } else {
+        setLoadingEmails(true);
+      }
+    } else {
+      setLoadingEmails(true);
+    }
     
     try {
       const response = await emailService.fetchEmails({ limit });
@@ -40,6 +63,7 @@ export default function EmailsPage({ user, onBack, initialSelectedEmail }: Email
       if (response.success) {
         setEmails(response.emails);
         setHasMore(response.emails.length >= limit);
+        emailCache.save(response.emails);
         
         if (initialSelectedEmail && response.emails.length > 0) {
           const emailIndex = response.emails.findIndex(e => e.uid === initialSelectedEmail.uid);
@@ -60,6 +84,7 @@ export default function EmailsPage({ user, onBack, initialSelectedEmail }: Email
       setEmailError(error.response?.data?.detail || 'Ошибка загрузки писем');
     } finally {
       setLoadingEmails(false);
+      setRefreshing(false);
     }
   };
 
@@ -127,12 +152,17 @@ export default function EmailsPage({ user, onBack, initialSelectedEmail }: Email
             <button
               onClick={() => {
                 setEmailLimit(12);
-                handleLoadEmails(12);
+                handleLoadEmails(false, 12);
               }}
-              disabled={loadingEmails}
-              className="bg-green-500 hover:bg-green-600 text-white text-sm px-4 py-2 rounded transition-colors disabled:bg-gray-400"
+              disabled={loadingEmails || refreshing}
+              className="bg-green-500 hover:bg-green-600 text-white text-sm px-4 py-2 rounded transition-colors disabled:bg-gray-400 flex items-center gap-2"
             >
-              {loadingEmails ? 'Загрузка...' : 'Обновить'}
+              {refreshing && (
+                <div className="relative w-4 h-4">
+                  <div className="absolute top-0 left-0 w-full h-full border-2 border-white rounded-full border-t-transparent animate-spin"></div>
+                </div>
+              )}
+              {loadingEmails ? 'Загрузка...' : refreshing ? 'Обновление...' : 'Обновить'}
             </button>
           </div>
         </div>
@@ -149,9 +179,16 @@ export default function EmailsPage({ user, onBack, initialSelectedEmail }: Email
           {/* Email List */}
           <div className="bg-white rounded-lg shadow-sm p-3 flex flex-col h-full overflow-hidden">
             <div className="flex justify-between items-center mb-3 flex-shrink-0">
-              <h2 className="text-base font-semibold text-gray-800">
-                Входящие ({emails.length})
-              </h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-semibold text-gray-800">
+                  Входящие ({emails.length})
+                </h2>
+                {refreshing && (
+                  <div className="relative w-4 h-4">
+                    <div className="absolute top-0 left-0 w-full h-full border-2 border-green-500 rounded-full border-t-transparent animate-spin"></div>
+                  </div>
+                )}
+              </div>
             </div>
 
             {loadingEmails ? (
