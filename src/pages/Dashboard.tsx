@@ -15,12 +15,11 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
   const [loadingEmails, setLoadingEmails] = useState(false);
   const [selectedEmail, setSelectedEmail] = useState<EmailMessage | null>(null);
 
-  // Auto-load emails when dashboard mounts
   useEffect(() => {
     const loadInitialEmails = async () => {
       setLoadingEmails(true);
       try {
-        const response = await emailService.fetchEmails({ limit: 11 });
+        const response = await emailService.fetchEmails({ limit: 12 });
         if (response.success) {
           setEmails(response.emails);
         }

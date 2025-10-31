@@ -12,9 +12,12 @@ interface EmailsPageProps {
 export default function EmailsPage({ user, onBack, initialSelectedEmail }: EmailsPageProps) {
   const [emails, setEmails] = useState<EmailMessage[]>([]);
   const [loadingEmails, setLoadingEmails] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedEmail, setSelectedEmail] = useState<EmailMessage | null>(initialSelectedEmail || null);
+  const [emailLimit, setEmailLimit] = useState(12);
+  const [hasMore, setHasMore] = useState(true);
   const emailsPerPage = 10;
 
   useEffect(() => {
@@ -27,15 +30,16 @@ export default function EmailsPage({ user, onBack, initialSelectedEmail }: Email
     }
   }, [initialSelectedEmail]);
 
-  const handleLoadEmails = async () => {
+  const handleLoadEmails = async (limit: number = emailLimit) => {
     setLoadingEmails(true);
     setEmailError(null);
     
     try {
-      const response = await emailService.fetchEmails({ limit: 25 });
+      const response = await emailService.fetchEmails({ limit });
       
       if (response.success) {
         setEmails(response.emails);
+        setHasMore(response.emails.length >= limit);
         
         if (initialSelectedEmail && response.emails.length > 0) {
           const emailIndex = response.emails.findIndex(e => e.uid === initialSelectedEmail.uid);
@@ -56,6 +60,28 @@ export default function EmailsPage({ user, onBack, initialSelectedEmail }: Email
       setEmailError(error.response?.data?.detail || 'Ошибка загрузки писем');
     } finally {
       setLoadingEmails(false);
+    }
+  };
+
+  const handleLoadMore = async () => {
+    setLoadingMore(true);
+    const newLimit = emailLimit + 5;
+    setEmailLimit(newLimit);
+    
+    try {
+      const response = await emailService.fetchEmails({ limit: newLimit });
+      
+      if (response.success) {
+        setEmails(response.emails);
+        setHasMore(response.emails.length >= newLimit);
+      } else {
+        setEmailError(response.message);
+      }
+    } catch (error: any) {
+      console.error('Failed to load more emails:', error);
+      setEmailError(error.response?.data?.detail || 'Ошибка загрузки писем');
+    } finally {
+      setLoadingMore(false);
     }
   };
 
@@ -99,7 +125,10 @@ export default function EmailsPage({ user, onBack, initialSelectedEmail }: Email
           <div className="flex items-center gap-4">
             <span className="text-sm text-gray-600">{user.email}</span>
             <button
-              onClick={handleLoadEmails}
+              onClick={() => {
+                setEmailLimit(12);
+                handleLoadEmails(12);
+              }}
               disabled={loadingEmails}
               className="bg-green-500 hover:bg-green-600 text-white text-sm px-4 py-2 rounded transition-colors disabled:bg-gray-400"
             >
@@ -177,39 +206,51 @@ export default function EmailsPage({ user, onBack, initialSelectedEmail }: Email
                 </div>
 
                 {/* Pagination */}
-                {totalPages > 1 && (
-                  <div className="flex justify-center items-center gap-2 pt-2 border-t flex-shrink-0">
-                    <button
-                      onClick={() => handlePageChange(currentPage - 1)}
-                      disabled={currentPage === 1}
-                      className="px-2 py-1 text-xs border rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      ←
-                    </button>
-                    
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+                <div className="pt-2 border-t flex-shrink-0 space-y-2">
+                  {totalPages > 1 && (
+                    <div className="flex justify-center items-center gap-2">
                       <button
-                        key={pageNum}
-                        onClick={() => handlePageChange(pageNum)}
-                        className={`px-2 py-1 text-xs border rounded ${
-                          currentPage === pageNum
-                            ? 'bg-green-500 text-white border-green-500'
-                            : 'hover:bg-gray-100'
-                        }`}
+                        onClick={() => handlePageChange(currentPage - 1)}
+                        disabled={currentPage === 1}
+                        className="px-2 py-1 text-xs border rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        {pageNum}
+                        ←
                       </button>
-                    ))}
-                    
+                      
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+                        <button
+                          key={pageNum}
+                          onClick={() => handlePageChange(pageNum)}
+                          className={`px-2 py-1 text-xs border rounded ${
+                            currentPage === pageNum
+                              ? 'bg-green-500 text-white border-green-500'
+                              : 'hover:bg-gray-100'
+                          }`}
+                        >
+                          {pageNum}
+                        </button>
+                      ))}
+                      
+                      <button
+                        onClick={() => handlePageChange(currentPage + 1)}
+                        disabled={currentPage === totalPages}
+                        className="px-2 py-1 text-xs border rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        →
+                      </button>
+                    </div>
+                  )}
+                  
+                  {hasMore && (
                     <button
-                      onClick={() => handlePageChange(currentPage + 1)}
-                      disabled={currentPage === totalPages}
-                      className="px-2 py-1 text-xs border rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                      onClick={handleLoadMore}
+                      disabled={loadingMore}
+                      className="w-full bg-blue-500 hover:bg-blue-600 text-white text-xs py-2 px-3 rounded transition-colors disabled:bg-gray-400"
                     >
-                      →
+                      {loadingMore ? 'Загрузка...' : `Загрузить ещё`}
                     </button>
-                  </div>
-                )}
+                  )}
+                </div>
               </>
             )}
           </div>
