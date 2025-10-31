@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { User } from '../types/user';
+import { EmailMessage } from '../types/email';
+import { emailService } from '../services/emailService';
 import EmailsPage from './EmailsPage';
 
 interface DashboardProps {
@@ -9,6 +11,38 @@ interface DashboardProps {
 
 export default function Dashboard({ user, onLogout }: DashboardProps) {
   const [currentView, setCurrentView] = useState<'dashboard' | 'emails'>('dashboard');
+  const [emails, setEmails] = useState<EmailMessage[]>([]);
+  const [loadingEmails, setLoadingEmails] = useState(false);
+
+  // Auto-load emails when dashboard mounts
+  useEffect(() => {
+    const loadInitialEmails = async () => {
+      setLoadingEmails(true);
+      try {
+        const response = await emailService.fetchEmails({ limit: 10 });
+        if (response.success) {
+          setEmails(response.emails);
+        }
+      } catch (error) {
+        console.error('Failed to load emails:', error);
+      } finally {
+        setLoadingEmails(false);
+      }
+    };
+
+    loadInitialEmails();
+  }, []);
+
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return 'Неизвестно';
+    const date = new Date(dateString);
+    return date.toLocaleString('ru-RU', {
+      day: '2-digit',
+      month: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
 
   if (currentView === 'emails') {
     return <EmailsPage user={user} onBack={() => setCurrentView('dashboard')} />;
@@ -74,18 +108,59 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold text-gray-800">Почта</h2>
                 <span className="bg-green-100 text-green-700 text-xs font-medium px-2.5 py-1 rounded-full">
-                  0
+                  {emails.length}
                 </span>
               </div>
-              <p className="text-sm text-gray-600 mb-4">
-                Входящие и исходящие письма
-              </p>
-              <div className="flex-1"></div>
+              
+              {/* Email preview list */}
+              <div className="flex-1 overflow-y-auto mb-4 space-y-2">
+                {loadingEmails ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="text-sm text-gray-500">Загрузка...</div>
+                  </div>
+                ) : emails.length === 0 ? (
+                  <div className="flex items-center justify-center py-8">
+                    <p className="text-sm text-gray-500 text-center">
+                      Нет писем
+                    </p>
+                  </div>
+                ) : (
+                  emails.slice(0, 8).map((email) => (
+                    <div
+                      key={email.uid}
+                      className={`p-2 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors ${
+                        email.is_read ? 'bg-white' : 'bg-blue-50 border-blue-200'
+                      }`}
+                      onClick={() => setCurrentView('emails')}
+                    >
+                      <div className="flex items-start justify-between mb-1">
+                        <span
+                          className={`text-xs font-medium truncate flex-1 ${
+                            email.is_read ? 'text-gray-900' : 'text-blue-900 font-semibold'
+                          }`}
+                        >
+                          {email.subject || '(Без темы)'}
+                        </span>
+                        {email.has_attachments && (
+                          <span className="ml-1 text-gray-400 text-xs" title="Есть вложения">
+                            📎
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-xs text-gray-600 truncate mb-0.5">
+                        {email.from_address}
+                      </div>
+                      <div className="text-xs text-gray-500">{formatDate(email.date)}</div>
+                    </div>
+                  ))
+                )}
+              </div>
+              
               <button
                 onClick={() => setCurrentView('emails')}
                 className="w-full bg-green-500 hover:bg-green-600 text-white text-sm py-2 px-4 rounded transition-colors"
               >
-                Загрузить последние сообщения
+                Открыть недавние
               </button>
             </div>
 
