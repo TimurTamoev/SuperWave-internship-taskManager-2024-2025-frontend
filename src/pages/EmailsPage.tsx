@@ -61,9 +61,9 @@ export default function EmailsPage({ user, onBack }: EmailsPageProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
       {/* Header */}
-      <nav className="bg-white shadow-sm border-b">
+      <nav className="bg-white shadow-sm border-b flex-shrink-0">
         <div className="container mx-auto px-4 py-3 flex justify-between items-center">
           <div className="flex items-center gap-4">
             <button
@@ -88,31 +88,31 @@ export default function EmailsPage({ user, onBack }: EmailsPageProps) {
         </div>
       </nav>
 
-      <div className="container mx-auto px-4 py-6">
+      <div className="flex-1 container mx-auto px-4 py-4 overflow-hidden">
         {emailError && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-600">
+          <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-600">
             {emailError}
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[calc(100vh-12rem)]">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-full">
           {/* Email List */}
-          <div className="bg-white rounded-lg shadow-sm p-4 flex flex-col">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-semibold text-gray-800">
+          <div className="bg-white rounded-lg shadow-sm p-3 flex flex-col h-full overflow-hidden">
+            <div className="flex justify-between items-center mb-3 flex-shrink-0">
+              <h2 className="text-base font-semibold text-gray-800">
                 Входящие ({emails.length})
               </h2>
             </div>
 
             {emails.length === 0 && !loadingEmails ? (
               <div className="flex-1 flex items-center justify-center">
-                <p className="text-gray-500">
+                <p className="text-sm text-gray-500">
                   Нажмите "Обновить" для загрузки писем
                 </p>
               </div>
             ) : (
               <>
-                <div className="flex-1 overflow-y-auto space-y-2 mb-4">
+                <div className="flex-1 overflow-y-auto space-y-2 mb-3 min-h-0">
                   {currentEmails.map((email) => (
                     <div
                       key={email.uid}
@@ -149,11 +149,11 @@ export default function EmailsPage({ user, onBack }: EmailsPageProps) {
 
                 {/* Pagination */}
                 {totalPages > 1 && (
-                  <div className="flex justify-center items-center gap-2 pt-3 border-t">
+                  <div className="flex justify-center items-center gap-2 pt-2 border-t flex-shrink-0">
                     <button
                       onClick={() => handlePageChange(currentPage - 1)}
                       disabled={currentPage === 1}
-                      className="px-3 py-1 text-sm border rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="px-2 py-1 text-xs border rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       ←
                     </button>
@@ -162,7 +162,7 @@ export default function EmailsPage({ user, onBack }: EmailsPageProps) {
                       <button
                         key={pageNum}
                         onClick={() => handlePageChange(pageNum)}
-                        className={`px-3 py-1 text-sm border rounded ${
+                        className={`px-2 py-1 text-xs border rounded ${
                           currentPage === pageNum
                             ? 'bg-green-500 text-white border-green-500'
                             : 'hover:bg-gray-100'
@@ -175,7 +175,7 @@ export default function EmailsPage({ user, onBack }: EmailsPageProps) {
                     <button
                       onClick={() => handlePageChange(currentPage + 1)}
                       disabled={currentPage === totalPages}
-                      className="px-3 py-1 text-sm border rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="px-2 py-1 text-xs border rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       →
                     </button>
@@ -186,33 +186,33 @@ export default function EmailsPage({ user, onBack }: EmailsPageProps) {
           </div>
 
           {/* Email Details */}
-          <div className="bg-white rounded-lg shadow-sm p-6 overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-sm p-4 overflow-y-auto h-full">
             {selectedEmail ? (
-              <div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-4">
+              <div className="h-full flex flex-col">
+                <h3 className="text-lg font-semibold text-gray-900 mb-3 flex-shrink-0">
                   {selectedEmail.subject || '(Без темы)'}
                 </h3>
                 
-                <div className="space-y-3 mb-6 pb-6 border-b">
-                  <div className="flex">
-                    <span className="font-medium text-gray-600 w-24">От:</span>
-                    <span className="text-gray-900">{selectedEmail.from_address}</span>
+                <div className="space-y-2 mb-4 pb-3 border-b flex-shrink-0">
+                  <div className="flex text-sm">
+                    <span className="font-medium text-gray-600 w-20">От:</span>
+                    <span className="text-gray-900 break-all">{selectedEmail.from_address}</span>
                   </div>
-                  <div className="flex">
-                    <span className="font-medium text-gray-600 w-24">Кому:</span>
-                    <span className="text-gray-900">{selectedEmail.to_addresses.join(', ')}</span>
+                  <div className="flex text-sm">
+                    <span className="font-medium text-gray-600 w-20">Кому:</span>
+                    <span className="text-gray-900 break-all">{selectedEmail.to_addresses.join(', ')}</span>
                   </div>
-                  <div className="flex">
-                    <span className="font-medium text-gray-600 w-24">Дата:</span>
+                  <div className="flex text-sm">
+                    <span className="font-medium text-gray-600 w-20">Дата:</span>
                     <span className="text-gray-900">{formatDate(selectedEmail.date)}</span>
                   </div>
                   
                   {selectedEmail.has_attachments && (
-                    <div className="flex">
-                      <span className="font-medium text-gray-600 w-24">Вложения:</span>
+                    <div className="flex text-sm">
+                      <span className="font-medium text-gray-600 w-20">Вложения:</span>
                       <div className="flex-1">
                         {selectedEmail.attachments.map((attachment, idx) => (
-                          <div key={idx} className="text-sm text-gray-700 flex items-center gap-2">
+                          <div key={idx} className="text-xs text-gray-700 flex items-center gap-1">
                             📎 {attachment.filename} ({(attachment.size / 1024).toFixed(1)} KB)
                           </div>
                         ))}
@@ -221,10 +221,10 @@ export default function EmailsPage({ user, onBack }: EmailsPageProps) {
                   )}
                 </div>
 
-                <div className="prose max-w-none">
+                <div className="flex-1 overflow-y-auto min-h-0">
                   {selectedEmail.body_html ? (
                     <div
-                      className="text-sm text-gray-700"
+                      className="text-sm text-gray-700 prose prose-sm max-w-none"
                       dangerouslySetInnerHTML={{ __html: selectedEmail.body_html }}
                     />
                   ) : (
@@ -235,7 +235,7 @@ export default function EmailsPage({ user, onBack }: EmailsPageProps) {
                 </div>
               </div>
             ) : (
-              <div className="flex items-center justify-center h-full text-gray-500">
+              <div className="flex items-center justify-center h-full text-gray-500 text-sm">
                 Выберите письмо для просмотра
               </div>
             )}
