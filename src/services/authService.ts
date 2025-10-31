@@ -12,7 +12,6 @@ export const login = async (username: string, password: string): Promise<LoginRe
     },
   });
   
-  // Store token in localStorage
   localStorage.setItem('access_token', response.data.access_token);
   
   return response.data;

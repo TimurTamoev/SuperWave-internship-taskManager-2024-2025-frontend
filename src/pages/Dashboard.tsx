@@ -47,7 +47,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
       </nav>
 
         <div className="container mx-auto px-4 py-8 h-[calc(100vh-4rem)]">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-full">
+          <div className="grid grid-cols-1 md:grid-cols-[3fr_7fr_4fr] gap-6 h-full">
             
             <div className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow flex flex-col">
               <div className="flex items-center justify-between mb-4">
