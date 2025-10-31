@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { User } from '../types/user';
-import { EmailMessage } from '../types/email';
-import { emailService } from '../services/emailService';
+import EmailsPage from './EmailsPage';
 
 interface DashboardProps {
   user: User;
@@ -9,41 +8,11 @@ interface DashboardProps {
 }
 
 export default function Dashboard({ user, onLogout }: DashboardProps) {
-  const [emails, setEmails] = useState<EmailMessage[]>([]);
-  const [loadingEmails, setLoadingEmails] = useState(false);
-  const [emailError, setEmailError] = useState<string | null>(null);
+  const [currentView, setCurrentView] = useState<'dashboard' | 'emails'>('dashboard');
 
-  const handleLoadEmails = async () => {
-    setLoadingEmails(true);
-    setEmailError(null);
-    
-    try {
-      const response = await emailService.fetchEmails({ limit: 25 });
-      
-      if (response.success) {
-        setEmails(response.emails);
-      } else {
-        setEmailError(response.message);
-      }
-    } catch (error: any) {
-      console.error('Failed to load emails:', error);
-      setEmailError(error.response?.data?.detail || 'Ошибка загрузки писем');
-    } finally {
-      setLoadingEmails(false);
-    }
-  };
-
-  const formatDate = (dateString: string | null) => {
-    if (!dateString) return 'Неизвестно';
-    const date = new Date(dateString);
-    return date.toLocaleString('ru-RU', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
+  if (currentView === 'emails') {
+    return <EmailsPage user={user} onBack={() => setCurrentView('dashboard')} />;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -105,58 +74,18 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold text-gray-800">Почта</h2>
                 <span className="bg-green-100 text-green-700 text-xs font-medium px-2.5 py-1 rounded-full">
-                  {emails.length}
+                  0
                 </span>
               </div>
-              
-              {emailError && (
-                <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-600">
-                  {emailError}
-                </div>
-              )}
-              
-              <div className="flex-1 overflow-y-auto mb-4 space-y-2">
-                {emails.length === 0 && !loadingEmails ? (
-                  <p className="text-sm text-gray-500 text-center py-4">
-                    Нажмите кнопку для загрузки писем
-                  </p>
-                ) : (
-                  emails.map((email) => (
-                    <div
-                      key={email.uid}
-                      className={`p-3 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors ${
-                        email.is_read ? 'bg-white' : 'bg-blue-50 border-blue-200'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between mb-1">
-                        <span className={`text-xs font-medium truncate flex-1 ${
-                          email.is_read ? 'text-gray-900' : 'text-blue-900'
-                        }`}>
-                          {email.subject || '(Без темы)'}
-                        </span>
-                        {email.has_attachments && (
-                          <span className="ml-2 text-gray-400" title="Есть вложения">
-                            📎
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-xs text-gray-600 truncate mb-1">
-                        От: {email.from_address}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {formatDate(email.date)}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-              
+              <p className="text-sm text-gray-600 mb-4">
+                Входящие и исходящие письма
+              </p>
+              <div className="flex-1"></div>
               <button
-                onClick={handleLoadEmails}
-                disabled={loadingEmails}
-                className="w-full bg-green-500 hover:bg-green-600 text-white text-sm py-2 px-4 rounded transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                onClick={() => setCurrentView('emails')}
+                className="w-full bg-green-500 hover:bg-green-600 text-white text-sm py-2 px-4 rounded transition-colors"
               >
-                {loadingEmails ? 'Загрузка...' : 'Загрузить последние сообщения'}
+                Загрузить последние сообщения
               </button>
             </div>
 
