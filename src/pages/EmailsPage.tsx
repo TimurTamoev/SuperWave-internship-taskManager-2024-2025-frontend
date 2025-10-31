@@ -6,20 +6,26 @@ import { emailService } from '../services/emailService';
 interface EmailsPageProps {
   user: User;
   onBack: () => void;
+  initialSelectedEmail?: EmailMessage | null;
 }
 
-export default function EmailsPage({ user, onBack }: EmailsPageProps) {
+export default function EmailsPage({ user, onBack, initialSelectedEmail }: EmailsPageProps) {
   const [emails, setEmails] = useState<EmailMessage[]>([]);
   const [loadingEmails, setLoadingEmails] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [selectedEmail, setSelectedEmail] = useState<EmailMessage | null>(null);
+  const [selectedEmail, setSelectedEmail] = useState<EmailMessage | null>(initialSelectedEmail || null);
   const emailsPerPage = 10;
 
-  // Auto-load emails when page mounts
   useEffect(() => {
     handleLoadEmails();
   }, []);
+
+  useEffect(() => {
+    if (initialSelectedEmail) {
+      setSelectedEmail(initialSelectedEmail);
+    }
+  }, [initialSelectedEmail]);
 
   const handleLoadEmails = async () => {
     setLoadingEmails(true);
@@ -30,7 +36,18 @@ export default function EmailsPage({ user, onBack }: EmailsPageProps) {
       
       if (response.success) {
         setEmails(response.emails);
-        setCurrentPage(1);
+        
+        if (initialSelectedEmail && response.emails.length > 0) {
+          const emailIndex = response.emails.findIndex(e => e.uid === initialSelectedEmail.uid);
+          if (emailIndex !== -1) {
+            const pageNumber = Math.floor(emailIndex / emailsPerPage) + 1;
+            setCurrentPage(pageNumber);
+          } else {
+            setCurrentPage(1);
+          }
+        } else {
+          setCurrentPage(1);
+        }
       } else {
         setEmailError(response.message);
       }
@@ -54,7 +71,6 @@ export default function EmailsPage({ user, onBack }: EmailsPageProps) {
     });
   };
 
-  // Pagination logic
   const indexOfLastEmail = currentPage * emailsPerPage;
   const indexOfFirstEmail = indexOfLastEmail - emailsPerPage;
   const currentEmails = emails.slice(indexOfFirstEmail, indexOfLastEmail);
@@ -109,10 +125,18 @@ export default function EmailsPage({ user, onBack }: EmailsPageProps) {
               </h2>
             </div>
 
-            {emails.length === 0 && !loadingEmails ? (
+            {loadingEmails ? (
+              <div className="flex-1 flex flex-col items-center justify-center">
+                <div className="relative w-16 h-16 mb-4">
+                  <div className="absolute top-0 left-0 w-full h-full border-4 border-green-200 rounded-full"></div>
+                  <div className="absolute top-0 left-0 w-full h-full border-4 border-green-500 rounded-full border-t-transparent animate-spin"></div>
+                </div>
+                <div className="text-sm text-gray-500">Загрузка писем...</div>
+              </div>
+            ) : emails.length === 0 ? (
               <div className="flex-1 flex items-center justify-center">
                 <p className="text-sm text-gray-500">
-                  Нажмите "Обновить" для загрузки писем
+                  Нет писем
                 </p>
               </div>
             ) : (
@@ -189,8 +213,6 @@ export default function EmailsPage({ user, onBack }: EmailsPageProps) {
               </>
             )}
           </div>
-
-          {/* Email Details */}
           <div className="bg-white rounded-lg shadow-sm p-4 overflow-y-auto h-full">
             {selectedEmail ? (
               <div className="h-full flex flex-col">
