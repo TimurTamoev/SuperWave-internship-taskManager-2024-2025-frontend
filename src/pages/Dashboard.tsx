@@ -19,7 +19,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
     const loadInitialEmails = async () => {
       setLoadingEmails(true);
       try {
-        const response = await emailService.fetchEmails({ limit: 10 });
+        const response = await emailService.fetchEmails({ limit: 11 });
         if (response.success) {
           setEmails(response.emails);
         }

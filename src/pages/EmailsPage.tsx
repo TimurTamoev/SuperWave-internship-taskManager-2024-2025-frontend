@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { User } from '../types/user';
 import { EmailMessage } from '../types/email';
 import { emailService } from '../services/emailService';
@@ -15,6 +15,11 @@ export default function EmailsPage({ user, onBack }: EmailsPageProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedEmail, setSelectedEmail] = useState<EmailMessage | null>(null);
   const emailsPerPage = 10;
+
+  // Auto-load emails when page mounts
+  useEffect(() => {
+    handleLoadEmails();
+  }, []);
 
   const handleLoadEmails = async () => {
     setLoadingEmails(true);
