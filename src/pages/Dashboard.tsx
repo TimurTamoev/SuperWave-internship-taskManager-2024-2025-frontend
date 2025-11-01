@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { User } from '../types/user';
 import { EmailMessage } from '../types/email';
+import { ResponseTemplate, EmailResponseAttachment } from '../types/template';
 import { emailService } from '../services/emailService';
+import { templateService } from '../services/templateService';
 import { emailCache } from '../utils/emailCache';
 import EmailsPage from './EmailsPage';
 import AdminPanel from './AdminPanel';
@@ -17,10 +19,16 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
   const [loadingEmails, setLoadingEmails] = useState(false);
   const [refreshingEmails, setRefreshingEmails] = useState(false);
   const [selectedEmail, setSelectedEmail] = useState<EmailMessage | null>(null);
+  
+  const [templates, setTemplates] = useState<ResponseTemplate[]>([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
+  const [showAddTemplate, setShowAddTemplate] = useState(false);
+  
+  const [attachments, setAttachments] = useState<EmailResponseAttachment[]>([]);
+  const [loadingAttachments, setLoadingAttachments] = useState(false);
 
   useEffect(() => {
     const loadInitialEmails = async () => {
-      // Check if user has email configured
       if (!user.email_password) {
         setEmails([]);
         return;
@@ -53,6 +61,50 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
 
     loadInitialEmails();
   }, [user.id, user.email_password]);
+
+  useEffect(() => {
+    const loadTemplatesAndAttachments = async () => {
+      setLoadingTemplates(true);
+      setLoadingAttachments(true);
+      
+      try {
+        const [templatesData, attachmentsData] = await Promise.all([
+          templateService.getAllTemplates(),
+          templateService.getAllAttachments(),
+        ]);
+        setTemplates(templatesData);
+        setAttachments(attachmentsData);
+      } catch (error) {
+        console.error('Failed to load templates or attachments:', error);
+      } finally {
+        setLoadingTemplates(false);
+        setLoadingAttachments(false);
+      }
+    };
+
+    loadTemplatesAndAttachments();
+  }, []);
+
+  const handleDeleteTemplate = async (templateId: number) => {
+    if (!confirm('Удалить этот шаблон?')) return;
+    
+    try {
+      await templateService.deleteTemplate(templateId);
+      setTemplates(templates.filter(t => t.id !== templateId));
+      
+      // Refresh attachments to remove any that referenced this template
+      try {
+        const attachmentsData = await templateService.getAllAttachments();
+        setAttachments(attachmentsData);
+      } catch (err) {
+        console.error('Failed to refresh attachments:', err);
+      }
+    } catch (error: any) {
+      console.error('Failed to delete template:', error);
+      const errorMsg = error.response?.data?.detail || 'Ошибка удаления шаблона';
+      alert(errorMsg);
+    }
+  };
 
   const handleEmailClick = (email: EmailMessage) => {
     setSelectedEmail(email);
@@ -150,13 +202,47 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
               <div className="flex items-center justify-between mb-4 flex-shrink-0">
                 <h2 className="text-lg font-semibold text-gray-800">Задачи</h2>
                 <span className="bg-blue-100 text-blue-700 text-xs font-medium px-2.5 py-1 rounded-full">
-                  0
+                  {attachments.length}
                 </span>
               </div>
-              <p className="text-sm text-gray-600 mb-4 flex-shrink-0">
-                Управление задачами и проектами
-              </p>
-              <div className="flex-1"></div>
+              
+              <div className="flex-1 overflow-y-auto space-y-2 min-h-0">
+                {loadingAttachments ? (
+                  <div className="flex flex-col items-center justify-center py-8">
+                    <div className="relative w-12 h-12 mb-3">
+                      <div className="absolute top-0 left-0 w-full h-full border-4 border-blue-200 rounded-full"></div>
+                      <div className="absolute top-0 left-0 w-full h-full border-4 border-blue-500 rounded-full border-t-transparent animate-spin"></div>
+                    </div>
+                    <div className="text-sm text-gray-500">Загрузка...</div>
+                  </div>
+                ) : attachments.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-8">
+                    <div className="text-gray-400 text-4xl mb-3">📋</div>
+                    <p className="text-xs text-gray-500 text-center">
+                      Нет задач с прикрепленными шаблонами
+                    </p>
+                  </div>
+                ) : (
+                  attachments.map((attachment) => (
+                    <div
+                      key={attachment.id}
+                      className="p-2 border rounded-lg bg-blue-50 border-blue-200"
+                    >
+                      <div className="text-xs font-medium text-blue-900 truncate mb-1">
+                        {attachment.email_subject || 'Без темы'}
+                      </div>
+                      <div className="text-xs text-gray-600 truncate mb-1">
+                        От: {attachment.email_from || 'Неизвестно'}
+                      </div>
+                      {attachment.response_template && (
+                        <div className="text-xs text-purple-700 truncate">
+                          → {attachment.response_template.title}
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
 
             <div className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow flex flex-col h-full overflow-hidden">
@@ -174,7 +260,6 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                 </span>
               </div>
               
-              {/* Email preview list */}
               <div className="flex-1 overflow-y-auto mb-4 space-y-2 min-h-0">
                 {!user.email_password ? (
                   <div className="flex flex-col items-center justify-center py-8 px-4">
@@ -249,20 +334,188 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
               <div className="flex items-center justify-between mb-4 flex-shrink-0">
                 <h2 className="text-lg font-semibold text-gray-800">Шаблоны</h2>
                 <span className="bg-purple-100 text-purple-700 text-xs font-medium px-2.5 py-1 rounded-full">
-                  0
+                  {templates.length}
                 </span>
               </div>
-              <p className="text-sm text-gray-600 mb-4 flex-shrink-0">
-                Шаблоны ответов на письма
-              </p>
-              <div className="flex-1"></div>
-              <button className="w-full bg-purple-500 hover:bg-purple-600 text-white text-sm py-2 px-4 rounded transition-colors flex-shrink-0">
-                Изменить шаблоны
-              </button>
+              
+              <div className="flex-1 overflow-y-auto mb-4 space-y-2 min-h-0">
+                {loadingTemplates ? (
+                  <div className="flex flex-col items-center justify-center py-8">
+                    <div className="relative w-12 h-12 mb-3">
+                      <div className="absolute top-0 left-0 w-full h-full border-4 border-purple-200 rounded-full"></div>
+                      <div className="absolute top-0 left-0 w-full h-full border-4 border-purple-500 rounded-full border-t-transparent animate-spin"></div>
+                    </div>
+                    <div className="text-sm text-gray-500">Загрузка...</div>
+                  </div>
+                ) : templates.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-8">
+                    <div className="text-gray-400 text-4xl mb-3">📝</div>
+                    <p className="text-xs text-gray-500 text-center">
+                      Нет шаблонов
+                    </p>
+                  </div>
+                ) : (
+                  templates.map((template) => (
+                    <div
+                      key={template.id}
+                      className="p-2 border rounded-lg bg-purple-50 border-purple-200"
+                    >
+                      <div className="flex items-start justify-between mb-1">
+                        <span className="text-xs font-semibold text-purple-900">
+                          {template.title}
+                        </span>
+                        {user.is_superuser && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteTemplate(template.id);
+                            }}
+                            className="text-red-500 hover:text-red-700 text-xs"
+                            title="Удалить"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-700 line-clamp-2">
+                        🟦 {template.body}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </div>
+              
+              {user.is_superuser && (
+                <button
+                  onClick={() => setShowAddTemplate(true)}
+                  className="w-full bg-purple-500 hover:bg-purple-600 text-white text-sm py-2 px-4 rounded transition-colors flex-shrink-0"
+                >
+                  Добавить шаблон
+                </button>
+              )}
             </div>
 
           </div>
         </div>
+
+        {/* Add Template Modal */}
+        {showAddTemplate && (
+          <AddTemplateModal
+            onClose={() => setShowAddTemplate(false)}
+            onSuccess={(newTemplate) => {
+              setTemplates([...templates, newTemplate]);
+              setShowAddTemplate(false);
+            }}
+          />
+        )}
+    </div>
+  );
+}
+
+// Add Template Modal Component
+function AddTemplateModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (template: ResponseTemplate) => void }) {
+  const [formData, setFormData] = useState({
+    title: '',
+    body: '',
+    send_response: false,
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+
+    try {
+      const newTemplate = await templateService.createTemplate(formData);
+      onSuccess(newTemplate);
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Ошибка создания шаблона');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 w-full max-w-md">
+        <h2 className="text-xl font-bold mb-4">Добавить шаблон</h2>
+        
+        {error && (
+          <div className="mb-4 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-600">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Название шаблона <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              required
+              maxLength={255}
+              value={formData.title}
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-purple-500"
+              placeholder="Например: Подтверждение получения"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Текст шаблона <span className="text-red-500">*</span>
+            </label>
+            <textarea
+              required
+              maxLength={1000}
+              value={formData.body}
+              onChange={(e) => setFormData({ ...formData, body: e.target.value })}
+              className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-purple-500 h-32 resize-none"
+              placeholder="Ваше письмо отправлено на обработку"
+            />
+            <div className="text-xs text-gray-500 mt-1">
+              {formData.body.length} / 1000 символов
+            </div>
+          </div>
+
+          <div>
+            <label className="flex items-center">
+              <input
+                type="checkbox"
+                checked={formData.send_response}
+                onChange={(e) => setFormData({ ...formData, send_response: e.target.checked })}
+                className="mr-2"
+              />
+              <span className="text-sm font-medium text-gray-700">
+                Автоматически отправлять ответ при прикреплении
+              </span>
+            </label>
+            <p className="text-xs text-gray-500 mt-1 ml-6">
+              Если включено, письмо будет отправлено сразу после прикрепления шаблона
+            </p>
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2 border border-gray-300 rounded hover:bg-gray-50"
+            >
+              Отмена
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex-1 px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 disabled:bg-gray-400"
+            >
+              {loading ? 'Создание...' : 'Создать'}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

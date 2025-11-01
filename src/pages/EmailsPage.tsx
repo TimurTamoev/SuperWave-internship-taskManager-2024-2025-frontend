@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { User } from '../types/user';
 import { EmailMessage } from '../types/email';
+import { ResponseTemplate } from '../types/template';
 import { emailService } from '../services/emailService';
+import { templateService } from '../services/templateService';
 import { emailCache } from '../utils/emailCache';
 
 interface EmailsPageProps {
@@ -21,9 +23,14 @@ export default function EmailsPage({ user, onBack, initialSelectedEmail }: Email
   const [emailLimit, setEmailLimit] = useState(12);
   const [hasMore, setHasMore] = useState(true);
   const emailsPerPage = 10;
+  
+  const [templates, setTemplates] = useState<ResponseTemplate[]>([]);
+  const [showAttachTemplate, setShowAttachTemplate] = useState(false);
+  const [attachingTemplate, setAttachingTemplate] = useState(false);
 
   useEffect(() => {
     handleLoadEmails(true);
+    loadTemplates();
   }, []);
 
   useEffect(() => {
@@ -32,10 +39,38 @@ export default function EmailsPage({ user, onBack, initialSelectedEmail }: Email
     }
   }, [initialSelectedEmail]);
 
+  const loadTemplates = async () => {
+    try {
+      const templatesData = await templateService.getAllTemplates();
+      setTemplates(templatesData);
+    } catch (error) {
+      console.error('Failed to load templates:', error);
+    }
+  };
+
+  const handleAttachTemplate = async (templateId: number) => {
+    if (!selectedEmail) return;
+    
+    setAttachingTemplate(true);
+    try {
+      await templateService.attachTemplateToEmail({
+        email_uid: selectedEmail.uid,
+        response_template_id: templateId,
+        email_subject: selectedEmail.subject || '(Без темы)',
+        email_from: selectedEmail.from_address,
+      });
+      alert('Шаблон успешно прикреплен к письму!');
+      setShowAttachTemplate(false);
+    } catch (error: any) {
+      alert(error.response?.data?.detail || 'Ошибка прикрепления шаблона');
+    } finally {
+      setAttachingTemplate(false);
+    }
+  };
+
   const handleLoadEmails = async (useCache: boolean = false, limit: number = emailLimit) => {
     setEmailError(null);
     
-    // Check if user has email configured
     if (!user.email_password) {
       setEmailError('В профиле пользователя отсутствует пароль от почты');
       setEmails([]);
@@ -145,7 +180,6 @@ export default function EmailsPage({ user, onBack, initialSelectedEmail }: Email
 
   return (
     <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
-      {/* Header */}
       <nav className="bg-white shadow-sm border-b flex-shrink-0">
         <div className="container mx-auto px-4 py-3 flex justify-between items-center">
           <div className="flex items-center gap-4">
@@ -181,7 +215,6 @@ export default function EmailsPage({ user, onBack, initialSelectedEmail }: Email
 
       <div className="flex-1 container mx-auto px-4 py-4 overflow-hidden">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-full">
-          {/* Email List */}
           <div className="bg-white rounded-lg shadow-sm p-3 flex flex-col h-full overflow-hidden">
             <div className="flex justify-between items-center mb-3 flex-shrink-0">
               <div className="flex items-center gap-2">
@@ -269,7 +302,6 @@ export default function EmailsPage({ user, onBack, initialSelectedEmail }: Email
                   ))}
                 </div>
 
-                {/* Pagination */}
                 <div className="pt-2 border-t flex-shrink-0 space-y-2">
                   {totalPages > 1 && (
                     <div className="flex justify-center items-center gap-2">
@@ -321,9 +353,17 @@ export default function EmailsPage({ user, onBack, initialSelectedEmail }: Email
           <div className="bg-white rounded-lg shadow-sm p-4 overflow-y-auto h-full">
             {selectedEmail ? (
               <div className="h-full flex flex-col">
-                <h3 className="text-lg font-semibold text-gray-900 mb-3 flex-shrink-0">
-                  {selectedEmail.subject || '(Без темы)'}
-                </h3>
+                <div className="flex items-center justify-between mb-3 flex-shrink-0">
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    {selectedEmail.subject || '(Без темы)'}
+                  </h3>
+                  <button
+                    onClick={() => setShowAttachTemplate(true)}
+                    className="bg-purple-500 hover:bg-purple-600 text-white text-xs px-3 py-1.5 rounded transition-colors"
+                  >
+                    Прикрепить шаблон
+                  </button>
+                </div>
                 
                 <div className="space-y-2 mb-4 pb-3 border-b flex-shrink-0">
                   <div className="flex text-sm">
@@ -374,6 +414,58 @@ export default function EmailsPage({ user, onBack, initialSelectedEmail }: Email
           </div>
         </div>
       </div>
+
+      {/* Attach Template Modal */}
+      {showAttachTemplate && selectedEmail && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-lg max-h-[80vh] flex flex-col">
+            <h2 className="text-xl font-bold mb-4">Прикрепить шаблон к письму</h2>
+            
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded">
+              <p className="text-sm font-medium text-gray-900 mb-1">Письмо:</p>
+              <p className="text-sm text-gray-700">{selectedEmail.subject || '(Без темы)'}</p>
+              <p className="text-xs text-gray-500 mt-1">От: {selectedEmail.from_address}</p>
+            </div>
+
+            <div className="flex-1 overflow-y-auto mb-4 space-y-2">
+              {templates.length === 0 ? (
+                <p className="text-sm text-gray-500 text-center py-8">
+                  Нет доступных шаблонов
+                </p>
+              ) : (
+                templates.map((template) => (
+                  <button
+                    key={template.id}
+                    onClick={() => handleAttachTemplate(template.id)}
+                    disabled={attachingTemplate}
+                    className="w-full text-left p-3 border rounded-lg hover:bg-purple-50 hover:border-purple-300 transition-colors disabled:opacity-50"
+                  >
+                    <div className="font-medium text-sm text-gray-900 mb-1">
+                      {template.title}
+                    </div>
+                    <p className="text-xs text-gray-600 line-clamp-2">
+                      🟦 {template.body}
+                    </p>
+                    {template.send_response && (
+                      <span className="inline-block mt-2 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">
+                        ✓ Автоотправка
+                      </span>
+                    )}
+                  </button>
+                ))
+              )}
+            </div>
+
+            <button
+              onClick={() => setShowAttachTemplate(false)}
+              disabled={attachingTemplate}
+              className="w-full px-4 py-2 border border-gray-300 rounded hover:bg-gray-50"
+            >
+              {attachingTemplate ? 'Прикрепление...' : 'Отмена'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

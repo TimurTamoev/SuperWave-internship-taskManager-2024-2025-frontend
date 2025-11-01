@@ -45,7 +45,6 @@ export const emailCache = {
   },
 
   clearAll: () => {
-    // Clear all email caches for all users
     Object.keys(localStorage).forEach(key => {
       if (key.startsWith(EMAIL_CACHE_PREFIX) || key.startsWith(CACHE_TIMESTAMP_PREFIX)) {
         localStorage.removeItem(key);
