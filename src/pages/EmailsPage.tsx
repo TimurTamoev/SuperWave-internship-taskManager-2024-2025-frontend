@@ -27,6 +27,7 @@ export default function EmailsPage({ user, onBack, initialSelectedEmail }: Email
   const [templates, setTemplates] = useState<ResponseTemplate[]>([]);
   const [showAttachTemplate, setShowAttachTemplate] = useState(false);
   const [attachingTemplate, setAttachingTemplate] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<ResponseTemplate | null>(null);
 
   useEffect(() => {
     handleLoadEmails(true);
@@ -48,19 +49,20 @@ export default function EmailsPage({ user, onBack, initialSelectedEmail }: Email
     }
   };
 
-  const handleAttachTemplate = async (templateId: number) => {
-    if (!selectedEmail) return;
+  const handleAttachTemplate = async () => {
+    if (!selectedEmail || !selectedTemplate) return;
     
     setAttachingTemplate(true);
     try {
       await templateService.attachTemplateToEmail({
         email_uid: selectedEmail.uid,
-        response_template_id: templateId,
+        response_template_id: selectedTemplate.id,
         email_subject: selectedEmail.subject || '(Без темы)',
         email_from: selectedEmail.from_address,
       });
       alert('Шаблон успешно прикреплен к письму!');
       setShowAttachTemplate(false);
+      setSelectedTemplate(null);
     } catch (error: any) {
       alert(error.response?.data?.detail || 'Ошибка прикрепления шаблона');
     } finally {
@@ -436,15 +438,19 @@ export default function EmailsPage({ user, onBack, initialSelectedEmail }: Email
                 templates.map((template) => (
                   <button
                     key={template.id}
-                    onClick={() => handleAttachTemplate(template.id)}
+                    onClick={() => setSelectedTemplate(template)}
                     disabled={attachingTemplate}
-                    className="w-full text-left p-3 border rounded-lg hover:bg-purple-50 hover:border-purple-300 transition-colors disabled:opacity-50"
+                    className={`w-full text-left p-3 border rounded-lg transition-colors disabled:opacity-50 ${
+                      selectedTemplate?.id === template.id
+                        ? 'bg-purple-100 border-purple-400'
+                        : 'hover:bg-purple-50 hover:border-purple-300'
+                    }`}
                   >
                     <div className="font-medium text-sm text-gray-900 mb-1">
                       {template.title}
                     </div>
                     <p className="text-xs text-gray-600 line-clamp-2">
-                      🟦 {template.body}
+                      {template.send_response ? '📨' : '⬇️'} {template.body}
                     </p>
                     {template.send_response && (
                       <span className="inline-block mt-2 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">
@@ -456,13 +462,25 @@ export default function EmailsPage({ user, onBack, initialSelectedEmail }: Email
               )}
             </div>
 
-            <button
-              onClick={() => setShowAttachTemplate(false)}
-              disabled={attachingTemplate}
-              className="w-full px-4 py-2 border border-gray-300 rounded hover:bg-gray-50"
-            >
-              {attachingTemplate ? 'Прикрепление...' : 'Отмена'}
-            </button>
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowAttachTemplate(false);
+                  setSelectedTemplate(null);
+                }}
+                disabled={attachingTemplate}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded hover:bg-gray-50"
+              >
+                Отмена
+              </button>
+              <button
+                onClick={handleAttachTemplate}
+                disabled={attachingTemplate || !selectedTemplate}
+                className="flex-1 px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
+              >
+                {attachingTemplate ? 'Прикрепление...' : 'Подтвердить'}
+              </button>
+            </div>
           </div>
         </div>
       )}

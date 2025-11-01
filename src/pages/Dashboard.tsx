@@ -378,7 +378,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                         )}
                       </div>
                       <p className="text-xs text-gray-700 line-clamp-2">
-                        🟦 {template.body}
+                        {template.send_response ? '📨' : '⬇️'} {template.body}
                       </p>
                     </div>
                   ))
