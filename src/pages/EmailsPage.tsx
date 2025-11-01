@@ -306,7 +306,7 @@ export default function EmailsPage({ user, onBack, initialSelectedEmail }: Email
 
                 <div className="pt-2 border-t flex-shrink-0 space-y-2">
                   {totalPages > 1 && (
-                    <div className="flex justify-center items-center gap-2">
+                    <div className="flex justify-center items-center gap-1">
                       <button
                         onClick={() => handlePageChange(currentPage - 1)}
                         disabled={currentPage === 1}
@@ -315,19 +315,9 @@ export default function EmailsPage({ user, onBack, initialSelectedEmail }: Email
                         ←
                       </button>
                       
-                      {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
-                        <button
-                          key={pageNum}
-                          onClick={() => handlePageChange(pageNum)}
-                          className={`px-2 py-1 text-xs border rounded ${
-                            currentPage === pageNum
-                              ? 'bg-green-500 text-white border-green-500'
-                              : 'hover:bg-gray-100'
-                          }`}
-                        >
-                          {pageNum}
-                        </button>
-                      ))}
+                      <span className="text-xs text-gray-600 px-2">
+                        Страница {currentPage} из {totalPages}
+                      </span>
                       
                       <button
                         onClick={() => handlePageChange(currentPage + 1)}

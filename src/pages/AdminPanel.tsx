@@ -209,6 +209,7 @@ export default function AdminPanel({ currentUser, onBack }: AdminPanelProps) {
       {editingUser && (
         <EditUserModal
           user={editingUser}
+          currentUser={currentUser}
           onClose={() => setEditingUser(null)}
           onSuccess={() => {
             setEditingUser(null);
@@ -237,6 +238,25 @@ function CreateUserModal({ onClose, onSuccess }: { onClose: () => void; onSucces
     setLoading(true);
     setError(null);
 
+    // Validate required fields
+    if (!formData.email?.trim() || !formData.username?.trim() || !formData.password?.trim()) {
+      setError('Заполните все обязательные поля');
+      setLoading(false);
+      return;
+    }
+
+    if (formData.username.length < 3) {
+      setError('Имя пользователя должно содержать минимум 3 символа');
+      setLoading(false);
+      return;
+    }
+
+    if (formData.password.length < 8) {
+      setError('Пароль должен содержать минимум 8 символов');
+      setLoading(false);
+      return;
+    }
+
     try {
       await adminService.createUser(formData);
       onSuccess();
@@ -260,24 +280,33 @@ function CreateUserModal({ onClose, onSuccess }: { onClose: () => void; onSucces
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Email <span className="text-red-500">*</span>
+            </label>
             <input
               type="email"
               required
+              maxLength={100}
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500"
+              placeholder="user@example.com"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Имя пользователя</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Имя пользователя <span className="text-red-500">*</span>
+            </label>
             <input
               type="text"
               required
+              minLength={3}
+              maxLength={50}
               value={formData.username}
               onChange={(e) => setFormData({ ...formData, username: e.target.value })}
               className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500"
+              placeholder="3-50 символов"
             />
           </div>
 
@@ -285,20 +314,27 @@ function CreateUserModal({ onClose, onSuccess }: { onClose: () => void; onSucces
             <label className="block text-sm font-medium text-gray-700 mb-1">Полное имя</label>
             <input
               type="text"
+              maxLength={100}
               value={formData.full_name}
               onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
               className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500"
+              placeholder="Иван Иванов"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Пароль</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Пароль <span className="text-red-500">*</span>
+            </label>
             <input
               type="password"
               required
+              minLength={8}
+              maxLength={100}
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
               className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500"
+              placeholder="8-100 символов"
             />
           </div>
 
@@ -306,9 +342,11 @@ function CreateUserModal({ onClose, onSuccess }: { onClose: () => void; onSucces
             <label className="block text-sm font-medium text-gray-700 mb-1">Пароль от почты (опционально)</label>
             <input
               type="password"
+              maxLength={100}
               value={formData.email_password}
               onChange={(e) => setFormData({ ...formData, email_password: e.target.value })}
               className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500"
+              placeholder="Для доступа к почте"
             />
           </div>
 
@@ -335,7 +373,7 @@ function CreateUserModal({ onClose, onSuccess }: { onClose: () => void; onSucces
 }
 
 // Edit User Modal Component
-function EditUserModal({ user, onClose, onSuccess }: { user: User; onClose: () => void; onSuccess: () => void }) {
+function EditUserModal({ user, onClose, onSuccess, currentUser }: { user: User; onClose: () => void; onSuccess: () => void; currentUser: User }) {
   const [formData, setFormData] = useState<UserUpdate>({
     email: user.email,
     username: user.username,
@@ -350,6 +388,20 @@ function EditUserModal({ user, onClose, onSuccess }: { user: User; onClose: () =
     e.preventDefault();
     setLoading(true);
     setError(null);
+
+    // Validate that email and username are not empty
+    if (!formData.email?.trim() || !formData.username?.trim()) {
+      setError('Email и имя пользователя не могут быть пустыми');
+      setLoading(false);
+      return;
+    }
+
+    // Prevent admin from deactivating themselves
+    if (user.id === currentUser.id && formData.is_active === false) {
+      setError('Вы не можете деактивировать свой собственный аккаунт');
+      setLoading(false);
+      return;
+    }
 
     try {
       await adminService.updateUser(user.id, formData);
@@ -374,22 +426,33 @@ function EditUserModal({ user, onClose, onSuccess }: { user: User; onClose: () =
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Email <span className="text-red-500">*</span>
+            </label>
             <input
               type="email"
+              required
+              maxLength={100}
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500"
+              placeholder="user@example.com"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Имя пользователя</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Имя пользователя <span className="text-red-500">*</span>
+            </label>
             <input
               type="text"
+              required
+              minLength={3}
+              maxLength={50}
               value={formData.username}
               onChange={(e) => setFormData({ ...formData, username: e.target.value })}
               className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500"
+              placeholder="3-50 символов"
             />
           </div>
 
@@ -397,9 +460,11 @@ function EditUserModal({ user, onClose, onSuccess }: { user: User; onClose: () =
             <label className="block text-sm font-medium text-gray-700 mb-1">Полное имя</label>
             <input
               type="text"
+              maxLength={100}
               value={formData.full_name || ''}
               onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
               className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500"
+              placeholder="Иван Иванов"
             />
           </div>
 
@@ -409,9 +474,15 @@ function EditUserModal({ user, onClose, onSuccess }: { user: User; onClose: () =
                 type="checkbox"
                 checked={formData.is_active}
                 onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+                disabled={user.id === currentUser.id}
                 className="mr-2"
               />
-              <span className="text-sm font-medium text-gray-700">Активен</span>
+              <span className="text-sm font-medium text-gray-700">
+                Активен
+                {user.id === currentUser.id && (
+                  <span className="text-xs text-gray-500 ml-1">(нельзя изменить для себя)</span>
+                )}
+              </span>
             </label>
 
             <label className="flex items-center">
@@ -419,11 +490,23 @@ function EditUserModal({ user, onClose, onSuccess }: { user: User; onClose: () =
                 type="checkbox"
                 checked={formData.is_superuser}
                 onChange={(e) => setFormData({ ...formData, is_superuser: e.target.checked })}
+                disabled={user.id === currentUser.id}
                 className="mr-2"
               />
-              <span className="text-sm font-medium text-gray-700">Администратор</span>
+              <span className="text-sm font-medium text-gray-700">
+                Администратор
+                {user.id === currentUser.id && (
+                  <span className="text-xs text-gray-500 ml-1">(нельзя изменить для себя)</span>
+                )}
+              </span>
             </label>
           </div>
+          
+          {formData.is_active === false && user.id !== currentUser.id && (
+            <div className="p-2 bg-yellow-50 border border-yellow-300 rounded text-xs text-yellow-700">
+              ⚠️ Внимание: деактивация пользователя заблокирует доступ к системе
+            </div>
+          )}
 
           <div className="flex gap-3 pt-4">
             <button
