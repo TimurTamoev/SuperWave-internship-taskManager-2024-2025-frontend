@@ -45,4 +45,11 @@ export const getCachedUser = (): User | null => {
 export const logout = () => {
   localStorage.removeItem('access_token');
   localStorage.removeItem('user_data');
+  
+  // Clear all email caches
+  Object.keys(localStorage).forEach(key => {
+    if (key.startsWith('cached_emails_') || key.startsWith('emails_cache_timestamp_')) {
+      localStorage.removeItem(key);
+    }
+  });
 };

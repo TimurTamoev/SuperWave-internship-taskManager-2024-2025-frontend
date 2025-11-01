@@ -35,8 +35,15 @@ export default function EmailsPage({ user, onBack, initialSelectedEmail }: Email
   const handleLoadEmails = async (useCache: boolean = false, limit: number = emailLimit) => {
     setEmailError(null);
     
+    // Check if user has email configured
+    if (!user.email_password) {
+      setEmailError('В профиле пользователя отсутствует пароль от почты');
+      setEmails([]);
+      return;
+    }
+    
     if (useCache) {
-      const cachedEmails = emailCache.get();
+      const cachedEmails = emailCache.get(user.id);
       if (cachedEmails && cachedEmails.length > 0) {
         const limitedEmails = cachedEmails.slice(0, limit);
         setEmails(limitedEmails);
@@ -63,7 +70,7 @@ export default function EmailsPage({ user, onBack, initialSelectedEmail }: Email
       if (response.success) {
         setEmails(response.emails);
         setHasMore(response.emails.length >= limit);
-        emailCache.save(response.emails);
+        emailCache.save(response.emails, user.id);
         
         if (initialSelectedEmail && response.emails.length > 0) {
           const emailIndex = response.emails.findIndex(e => e.uid === initialSelectedEmail.uid);
@@ -78,10 +85,13 @@ export default function EmailsPage({ user, onBack, initialSelectedEmail }: Email
         }
       } else {
         setEmailError(response.message);
+        setEmails([]);
       }
     } catch (error: any) {
       console.error('Failed to load emails:', error);
-      setEmailError(error.response?.data?.detail || 'Ошибка загрузки писем');
+      const errorMsg = error.response?.data?.detail || 'Ошибка загрузки писем';
+      setEmailError(errorMsg);
+      setEmails([]);
     } finally {
       setLoadingEmails(false);
       setRefreshing(false);
@@ -99,6 +109,7 @@ export default function EmailsPage({ user, onBack, initialSelectedEmail }: Email
       if (response.success) {
         setEmails(response.emails);
         setHasMore(response.emails.length >= newLimit);
+        emailCache.save(response.emails, user.id);
       } else {
         setEmailError(response.message);
       }
@@ -169,12 +180,6 @@ export default function EmailsPage({ user, onBack, initialSelectedEmail }: Email
       </nav>
 
       <div className="flex-1 container mx-auto px-4 py-4 overflow-hidden">
-        {emailError && (
-          <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-600">
-            {emailError}
-          </div>
-        )}
-
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-full">
           {/* Email List */}
           <div className="bg-white rounded-lg shadow-sm p-3 flex flex-col h-full overflow-hidden">
@@ -191,7 +196,28 @@ export default function EmailsPage({ user, onBack, initialSelectedEmail }: Email
               </div>
             </div>
 
-            {loadingEmails ? (
+            {emailError ? (
+              <div className="flex-1 flex flex-col items-center justify-center px-4">
+                <div className="text-red-500 text-5xl mb-4">❌</div>
+                <p className="text-base font-semibold text-gray-900 mb-2 text-center">
+                  Не удалось подключиться к почте
+                </p>
+                <div className="bg-red-50 border border-red-200 rounded p-3 mb-4 max-w-md">
+                  <p className="text-sm text-red-700 text-center">
+                    {emailError}
+                  </p>
+                </div>
+                <p className="text-xs text-gray-500 text-center mb-4">
+                  Возможные причины:
+                </p>
+                <ul className="text-xs text-gray-600 space-y-1 max-w-md">
+                  <li>• Отсутствует пароль от почты в профиле</li>
+                  <li>• Неверный пароль от почты</li>
+                  <li>• Проблемы с IMAP сервером</li>
+                  <li>• Нет подключения к интернету</li>
+                </ul>
+              </div>
+            ) : loadingEmails ? (
               <div className="flex-1 flex flex-col items-center justify-center">
                 <div className="relative w-16 h-16 mb-4">
                   <div className="absolute top-0 left-0 w-full h-full border-4 border-green-200 rounded-full"></div>
@@ -200,7 +226,8 @@ export default function EmailsPage({ user, onBack, initialSelectedEmail }: Email
                 <div className="text-sm text-gray-500">Загрузка писем...</div>
               </div>
             ) : emails.length === 0 ? (
-              <div className="flex-1 flex items-center justify-center">
+              <div className="flex-1 flex flex-col items-center justify-center">
+                <div className="text-gray-400 text-5xl mb-4">📭</div>
                 <p className="text-sm text-gray-500">
                   Нет писем
                 </p>

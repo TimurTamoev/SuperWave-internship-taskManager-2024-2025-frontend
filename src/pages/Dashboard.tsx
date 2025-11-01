@@ -4,6 +4,7 @@ import { EmailMessage } from '../types/email';
 import { emailService } from '../services/emailService';
 import { emailCache } from '../utils/emailCache';
 import EmailsPage from './EmailsPage';
+import AdminPanel from './AdminPanel';
 
 interface DashboardProps {
   user: User;
@@ -11,7 +12,7 @@ interface DashboardProps {
 }
 
 export default function Dashboard({ user, onLogout }: DashboardProps) {
-  const [currentView, setCurrentView] = useState<'dashboard' | 'emails'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'emails' | 'admin'>('dashboard');
   const [emails, setEmails] = useState<EmailMessage[]>([]);
   const [loadingEmails, setLoadingEmails] = useState(false);
   const [refreshingEmails, setRefreshingEmails] = useState(false);
@@ -19,7 +20,13 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
 
   useEffect(() => {
     const loadInitialEmails = async () => {
-      const cachedEmails = emailCache.get();
+      // Check if user has email configured
+      if (!user.email_password) {
+        setEmails([]);
+        return;
+      }
+
+      const cachedEmails = emailCache.get(user.id);
       if (cachedEmails && cachedEmails.length > 0) {
         setEmails(cachedEmails.slice(0, 12));
         setRefreshingEmails(true);
@@ -31,10 +38,13 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
         const response = await emailService.fetchEmails({ limit: 12 });
         if (response.success) {
           setEmails(response.emails);
-          emailCache.save(response.emails);
+          emailCache.save(response.emails, user.id);
+        } else {
+          setEmails([]);
         }
       } catch (error) {
         console.error('Failed to load emails:', error);
+        setEmails([]);
       } finally {
         setLoadingEmails(false);
         setRefreshingEmails(false);
@@ -42,7 +52,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
     };
 
     loadInitialEmails();
-  }, []);
+  }, [user.id, user.email_password]);
 
   const handleEmailClick = (email: EmailMessage) => {
     setSelectedEmail(email);
@@ -73,11 +83,31 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
     );
   }
 
+  if (currentView === 'admin') {
+    return (
+      <AdminPanel
+        currentUser={user}
+        onBack={() => setCurrentView('dashboard')}
+      />
+    );
+  }
+
   return (
     <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
       <nav className="bg-white shadow-sm border-b flex-shrink-0">
         <div className="container mx-auto px-4 py-3 flex justify-between items-center">
-          <h1 className="text-xl font-bold text-gray-900">SW Task Manager</h1>
+          <div className="flex items-center gap-6">
+            <h1 className="text-xl font-bold text-gray-900">SW Task Manager</h1>
+            
+            {user.is_superuser && (
+              <button
+                onClick={() => setCurrentView('admin')}
+                className="text-sm text-purple-600 hover:text-purple-700 font-medium"
+              >
+                Админ-панель
+              </button>
+            )}
+          </div>
           
           <div className="flex items-center gap-4">
             <div className="text-right">
@@ -146,7 +176,17 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
               
               {/* Email preview list */}
               <div className="flex-1 overflow-y-auto mb-4 space-y-2 min-h-0">
-                {loadingEmails ? (
+                {!user.email_password ? (
+                  <div className="flex flex-col items-center justify-center py-8 px-4">
+                    <div className="text-yellow-500 text-4xl mb-3">⚠️</div>
+                    <p className="text-sm text-gray-700 text-center font-medium mb-1">
+                      Почта не настроена
+                    </p>
+                    <p className="text-xs text-gray-500 text-center">
+                      В профиле пользователя отсутствует пароль от почты
+                    </p>
+                  </div>
+                ) : loadingEmails ? (
                   <div className="flex flex-col items-center justify-center py-8">
                     <div className="relative w-12 h-12 mb-3">
                       <div className="absolute top-0 left-0 w-full h-full border-4 border-green-200 rounded-full"></div>
@@ -155,7 +195,8 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                     <div className="text-sm text-gray-500">Загрузка писем...</div>
                   </div>
                 ) : emails.length === 0 ? (
-                  <div className="flex items-center justify-center py-8">
+                  <div className="flex flex-col items-center justify-center py-8 px-4">
+                    <div className="text-gray-400 text-4xl mb-3">📭</div>
                     <p className="text-sm text-gray-500 text-center">
                       Нет писем
                     </p>
@@ -197,7 +238,8 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                   setSelectedEmail(null);
                   setCurrentView('emails');
                 }}
-                className="w-full bg-green-500 hover:bg-green-600 text-white text-sm py-2 px-4 rounded transition-colors flex-shrink-0"
+                disabled={!user.email_password}
+                className="w-full bg-green-500 hover:bg-green-600 text-white text-sm py-2 px-4 rounded transition-colors flex-shrink-0 disabled:bg-gray-400 disabled:cursor-not-allowed"
               >
                 Открыть недавние
               </button>
