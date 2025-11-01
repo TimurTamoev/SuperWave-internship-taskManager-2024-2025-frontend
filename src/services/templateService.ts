@@ -50,5 +50,14 @@ export const templateService = {
     });
     return response.data;
   },
+
+  async deleteAttachment(attachmentId: number): Promise<void> {
+    const token = localStorage.getItem('access_token');
+    await api.delete(`/responses/response/attachment/${attachmentId}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+  },
 };
 

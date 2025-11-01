@@ -26,6 +26,8 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
   
   const [attachments, setAttachments] = useState<EmailResponseAttachment[]>([]);
   const [loadingAttachments, setLoadingAttachments] = useState(false);
+  const [selectedAttachment, setSelectedAttachment] = useState<EmailResponseAttachment | null>(null);
+  const [unpinning, setUnpinning] = useState(false);
 
   useEffect(() => {
     const loadInitialEmails = async () => {
@@ -86,6 +88,13 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
   }, []);
 
   const handleDeleteTemplate = async (templateId: number) => {
+    // Check if template is being used in any attachments
+    const isUsed = attachments.some(a => a.response_template_id === templateId);
+    if (isUsed) {
+      alert('Нельзя удалить шаблон, который прикреплен к письмам. Сначала открепите его от всех писем.');
+      return;
+    }
+
     if (!confirm('Удалить этот шаблон?')) return;
     
     try {
@@ -103,6 +112,22 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
       console.error('Failed to delete template:', error);
       const errorMsg = error.response?.data?.detail || 'Ошибка удаления шаблона';
       alert(errorMsg);
+    }
+  };
+
+  const handleUnpinTemplate = async (attachmentId: number) => {
+    if (!confirm('Открепить шаблон от этого письма?')) return;
+    
+    setUnpinning(true);
+    try {
+      await templateService.deleteAttachment(attachmentId);
+      setAttachments(attachments.filter(a => a.id !== attachmentId));
+      setSelectedAttachment(null);
+    } catch (error: any) {
+      console.error('Failed to unpin template:', error);
+      alert(error.response?.data?.detail || 'Ошибка открепления шаблона');
+    } finally {
+      setUnpinning(false);
     }
   };
 
@@ -226,7 +251,8 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                   attachments.map((attachment) => (
                     <div
                       key={attachment.id}
-                      className="p-2 border rounded-lg bg-blue-50 border-blue-200"
+                      onClick={() => setSelectedAttachment(attachment)}
+                      className="p-2 border rounded-lg bg-blue-50 border-blue-200 cursor-pointer hover:bg-blue-100 transition-colors"
                     >
                       <div className="text-xs font-medium text-blue-900 truncate mb-1">
                         {attachment.email_subject || 'Без темы'}
@@ -408,6 +434,100 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
             }}
           />
         )}
+
+        {/* Task Detail Modal */}
+        {selectedAttachment && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold">Детали задачи</h2>
+                <button
+                  onClick={() => setSelectedAttachment(null)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Email Info */}
+              <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded">
+                <h3 className="text-sm font-semibold text-gray-900 mb-2">📧 Исходное письмо</h3>
+                <div className="space-y-1">
+                  <div className="flex">
+                    <span className="text-xs font-medium text-gray-600 w-24">Тема:</span>
+                    <span className="text-xs text-gray-900">{selectedAttachment.email_subject || 'Без темы'}</span>
+                  </div>
+                  <div className="flex">
+                    <span className="text-xs font-medium text-gray-600 w-24">От:</span>
+                    <span className="text-xs text-gray-900">{selectedAttachment.email_from || 'Неизвестно'}</span>
+                  </div>
+                  <div className="flex">
+                    <span className="text-xs font-medium text-gray-600 w-24">UID письма:</span>
+                    <span className="text-xs text-gray-500">{selectedAttachment.email_uid}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Template Info */}
+              {selectedAttachment.response_template && (
+                <div className="mb-4 p-4 bg-purple-50 border border-purple-200 rounded">
+                  <h3 className="text-sm font-semibold text-gray-900 mb-2">
+                    {selectedAttachment.response_template.send_response ? '📨' : '⬇️'} Прикрепленный шаблон
+                  </h3>
+                  <div className="space-y-2">
+                    <div>
+                      <span className="text-xs font-medium text-gray-600">Название:</span>
+                      <p className="text-sm text-gray-900 mt-1">{selectedAttachment.response_template.title}</p>
+                    </div>
+                    <div>
+                      <span className="text-xs font-medium text-gray-600">Текст ответа:</span>
+                      <p className="text-sm text-gray-900 mt-1 p-2 bg-white rounded border">
+                        {selectedAttachment.response_template.body}
+                      </p>
+                    </div>
+                    {selectedAttachment.response_template.send_response && (
+                      <div className="mt-2">
+                        <span className="inline-block text-xs bg-green-100 text-green-700 px-2 py-1 rounded">
+                          ✓ Автоматическая отправка включена
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Notes */}
+              {selectedAttachment.notes && (
+                <div className="mb-4 p-3 bg-gray-50 border border-gray-200 rounded">
+                  <span className="text-xs font-medium text-gray-600">Заметки:</span>
+                  <p className="text-sm text-gray-900 mt-1">{selectedAttachment.notes}</p>
+                </div>
+              )}
+
+              {/* Meta Info */}
+              <div className="mb-4 text-xs text-gray-500">
+                Прикреплено: {new Date(selectedAttachment.attached_at).toLocaleString('ru-RU')}
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setSelectedAttachment(null)}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded hover:bg-gray-50"
+                >
+                  Закрыть
+                </button>
+                <button
+                  onClick={() => handleUnpinTemplate(selectedAttachment.id)}
+                  disabled={unpinning}
+                  className="flex-1 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 disabled:bg-gray-400"
+                >
+                  {unpinning ? 'Открепление...' : 'Открепить шаблон'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
     </div>
   );
 }
@@ -512,10 +632,10 @@ function AddTemplateModal({ onClose, onSuccess }: { onClose: () => void; onSucce
               className="flex-1 px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 disabled:bg-gray-400"
             >
               {loading ? 'Создание...' : 'Создать'}
-            </button>
+        </button>
           </div>
         </form>
       </div>
-    </div>
-  );
-}
+      </div>
+    );
+  }
