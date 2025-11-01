@@ -23,6 +23,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
   const [templates, setTemplates] = useState<ResponseTemplate[]>([]);
   const [loadingTemplates, setLoadingTemplates] = useState(false);
   const [showAddTemplate, setShowAddTemplate] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<ResponseTemplate | null>(null);
   
   const [attachments, setAttachments] = useState<EmailResponseAttachment[]>([]);
   const [loadingAttachments, setLoadingAttachments] = useState(false);
@@ -88,7 +89,6 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
   }, []);
 
   const handleDeleteTemplate = async (templateId: number) => {
-    // Check if template is being used in any attachments
     const isUsed = attachments.some(a => a.response_template_id === templateId);
     if (isUsed) {
       alert('Нельзя удалить шаблон, который прикреплен к письмам. Сначала открепите его от всех писем.');
@@ -101,7 +101,6 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
       await templateService.deleteTemplate(templateId);
       setTemplates(templates.filter(t => t.id !== templateId));
       
-      // Refresh attachments to remove any that referenced this template
       try {
         const attachmentsData = await templateService.getAllAttachments();
         setAttachments(attachmentsData);
@@ -384,10 +383,14 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                   templates.map((template) => (
                     <div
                       key={template.id}
-                      className="p-2 border rounded-lg bg-purple-50 border-purple-200"
+                      onClick={() => setSelectedTemplate(template)}
+                      className="p-2 border rounded-lg bg-purple-50 border-purple-200 cursor-pointer hover:bg-purple-100 transition-colors"
                     >
-                      <div className="flex items-start justify-between mb-1">
-                        <span className="text-xs font-semibold text-purple-900">
+                      <div className="flex items-start justify-between mb-1 gap-2">
+                        <span 
+                          className="text-xs font-semibold text-purple-900 truncate flex-1 min-w-0" 
+                          title={template.title}
+                        >
                           {template.title}
                         </span>
                         {user.is_superuser && (
@@ -396,7 +399,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                               e.stopPropagation();
                               handleDeleteTemplate(template.id);
                             }}
-                            className="text-red-500 hover:text-red-700 text-xs"
+                            className="text-red-500 hover:text-red-700 text-xs flex-shrink-0"
                             title="Удалить"
                           >
                             ✕
@@ -424,7 +427,6 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
           </div>
         </div>
 
-        {/* Add Template Modal */}
         {showAddTemplate && (
           <AddTemplateModal
             onClose={() => setShowAddTemplate(false)}
@@ -435,10 +437,23 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
           />
         )}
 
-        {/* Task Detail Modal */}
+        {selectedTemplate && (
+          <TemplateDetailModal
+            template={selectedTemplate}
+            user={user}
+            onClose={() => {
+              setSelectedTemplate(null);
+            }}
+            onUpdate={(updatedTemplate) => {
+              setTemplates(templates.map(t => t.id === updatedTemplate.id ? updatedTemplate : t));
+              setSelectedTemplate(updatedTemplate);
+            }}
+          />
+        )}
+
         {selectedAttachment && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto">
+            <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto min-w-0">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-bold">Детали задачи</h2>
                 <button
@@ -449,26 +464,24 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                 </button>
               </div>
 
-              {/* Email Info */}
               <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded">
                 <h3 className="text-sm font-semibold text-gray-900 mb-2">📧 Исходное письмо</h3>
                 <div className="space-y-1">
                   <div className="flex">
-                    <span className="text-xs font-medium text-gray-600 w-24">Тема:</span>
-                    <span className="text-xs text-gray-900">{selectedAttachment.email_subject || 'Без темы'}</span>
+                    <span className="text-xs font-medium text-gray-600 w-24 flex-shrink-0">Тема:</span>
+                    <span className="text-xs text-gray-900 break-words">{selectedAttachment.email_subject || 'Без темы'}</span>
                   </div>
                   <div className="flex">
-                    <span className="text-xs font-medium text-gray-600 w-24">От:</span>
-                    <span className="text-xs text-gray-900">{selectedAttachment.email_from || 'Неизвестно'}</span>
+                    <span className="text-xs font-medium text-gray-600 w-24 flex-shrink-0">От:</span>
+                    <span className="text-xs text-gray-900 break-words">{selectedAttachment.email_from || 'Неизвестно'}</span>
                   </div>
                   <div className="flex">
-                    <span className="text-xs font-medium text-gray-600 w-24">UID письма:</span>
-                    <span className="text-xs text-gray-500">{selectedAttachment.email_uid}</span>
+                    <span className="text-xs font-medium text-gray-600 w-24 flex-shrink-0">UID письма:</span>
+                    <span className="text-xs text-gray-500 break-words">{selectedAttachment.email_uid}</span>
                   </div>
                 </div>
               </div>
 
-              {/* Template Info */}
               {selectedAttachment.response_template && (
                 <div className="mb-4 p-4 bg-purple-50 border border-purple-200 rounded">
                   <h3 className="text-sm font-semibold text-gray-900 mb-2">
@@ -477,11 +490,11 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                   <div className="space-y-2">
                     <div>
                       <span className="text-xs font-medium text-gray-600">Название:</span>
-                      <p className="text-sm text-gray-900 mt-1">{selectedAttachment.response_template.title}</p>
+                      <p className="text-sm text-gray-900 mt-1 break-words">{selectedAttachment.response_template.title}</p>
                     </div>
                     <div>
                       <span className="text-xs font-medium text-gray-600">Текст ответа:</span>
-                      <p className="text-sm text-gray-900 mt-1 p-2 bg-white rounded border">
+                      <p className="text-sm text-gray-900 mt-1 p-2 bg-white rounded border break-words whitespace-pre-wrap">
                         {selectedAttachment.response_template.body}
                       </p>
                     </div>
@@ -496,20 +509,17 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                 </div>
               )}
 
-              {/* Notes */}
               {selectedAttachment.notes && (
                 <div className="mb-4 p-3 bg-gray-50 border border-gray-200 rounded">
                   <span className="text-xs font-medium text-gray-600">Заметки:</span>
-                  <p className="text-sm text-gray-900 mt-1">{selectedAttachment.notes}</p>
+                  <p className="text-sm text-gray-900 mt-1 break-words whitespace-pre-wrap">{selectedAttachment.notes}</p>
                 </div>
               )}
 
-              {/* Meta Info */}
               <div className="mb-4 text-xs text-gray-500">
                 Прикреплено: {new Date(selectedAttachment.attached_at).toLocaleString('ru-RU')}
               </div>
 
-              {/* Actions */}
               <div className="flex gap-3">
                 <button
                   onClick={() => setSelectedAttachment(null)}
@@ -532,7 +542,230 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
   );
 }
 
-// Add Template Modal Component
+function TemplateDetailModal({ 
+  template, 
+  user, 
+  onClose, 
+  onUpdate 
+}: { 
+  template: ResponseTemplate; 
+  user: User;
+  onClose: () => void; 
+  onUpdate: (template: ResponseTemplate) => void;
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [formData, setFormData] = useState({
+    title: template.title,
+    body: template.body,
+    send_response: template.send_response,
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isEditing) {
+      setFormData({
+        title: template.title,
+        body: template.body,
+        send_response: template.send_response,
+      });
+    }
+  }, [template, isEditing]);
+
+  const handleEdit = () => {
+    setFormData({
+      title: template.title,
+      body: template.body,
+      send_response: template.send_response,
+    });
+    setIsEditing(true);
+    setError(null);
+  };
+
+  const handleCancel = () => {
+    setIsEditing(false);
+    setFormData({
+      title: template.title,
+      body: template.body,
+      send_response: template.send_response,
+    });
+    setError(null);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+
+    try {
+      const updatedTemplate = await templateService.updateTemplate(template.id, formData);
+      onUpdate(updatedTemplate);
+      setIsEditing(false);
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Ошибка обновления шаблона');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold">{isEditing ? 'Редактировать шаблон' : 'Детали шаблона'}</h2>
+          <button
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-700"
+          >
+            ✕
+          </button>
+        </div>
+
+        {error && (
+          <div className="mb-4 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-600">
+            {error}
+          </div>
+        )}
+
+        {isEditing ? (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="mb-4 p-4 bg-purple-50 border border-purple-200 rounded">
+              <h3 className="text-sm font-semibold text-gray-900 mb-3">
+                {formData.send_response ? '📨' : '⬇️'} Информация о шаблоне
+              </h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Название <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    maxLength={200}
+                    value={formData.title}
+                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-purple-500"
+                  />
+                  <div className="text-xs text-gray-500 mt-1">
+                    {formData.title.length} / 200 символов
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Текст шаблона <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    required
+                    maxLength={2000}
+                    value={formData.body}
+                    onChange={(e) => setFormData({ ...formData, body: e.target.value })}
+                    className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-purple-500 h-32 resize-none"
+                  />
+                  <div className="text-xs text-gray-500 mt-1">
+                    {formData.body.length} / 2000 символов
+                  </div>
+                </div>
+                <div>
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={formData.send_response}
+                      onChange={(e) => setFormData({ ...formData, send_response: e.target.checked })}
+                      className="mr-2"
+                    />
+                    <span className="text-sm font-medium text-gray-700">
+                      Автоматически отправлять ответ при прикреплении
+                    </span>
+                  </label>
+                  <p className="text-xs text-gray-500 mt-1 ml-6">
+                    Если включено, письмо будет отправлено сразу после прикрепления шаблона
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={handleCancel}
+                disabled={loading}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded hover:bg-gray-50 disabled:bg-gray-100"
+              >
+                Отмена
+              </button>
+              <button
+                type="submit"
+                disabled={loading}
+                className="flex-1 px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 disabled:bg-gray-400"
+              >
+                {loading ? 'Сохранение...' : 'Сохранить'}
+              </button>
+            </div>
+          </form>
+        ) : (
+          <>
+            <div className="mb-4 p-4 bg-purple-50 border border-purple-200 rounded">
+              <h3 className="text-sm font-semibold text-gray-900 mb-2">
+                {template.send_response ? '📨' : '⬇️'} Информация о шаблоне
+              </h3>
+              <div className="space-y-3">
+                <div>
+                  <span className="text-xs font-medium text-gray-600">Название:</span>
+                  <p className="text-sm text-gray-900 mt-1 break-words">{template.title}</p>
+                </div>
+                <div>
+                  <span className="text-xs font-medium text-gray-600">Текст шаблона:</span>
+                  <p className="text-sm text-gray-900 mt-1 p-2 bg-white rounded border whitespace-pre-wrap break-words">
+                    {template.body}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium text-gray-600">Автоматическая отправка:</span>
+                  {template.send_response ? (
+                    <span className="inline-block text-xs bg-green-100 text-green-700 px-2 py-1 rounded">
+                      ✓ Включена
+                    </span>
+                  ) : (
+                    <span className="inline-block text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
+                      ✗ Выключена
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="mb-4 text-xs text-gray-500">
+              Создано: {new Date(template.created_at).toLocaleString('ru-RU')}
+              {template.updated_at && (
+                <span className="ml-4">
+                  Обновлено: {new Date(template.updated_at).toLocaleString('ru-RU')}
+                </span>
+              )}
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={onClose}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded hover:bg-gray-50"
+              >
+                Закрыть
+              </button>
+              {user.is_superuser && (
+                <button
+                  onClick={handleEdit}
+                  className="flex-1 px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600"
+                >
+                  Редактировать
+                </button>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function AddTemplateModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (template: ResponseTemplate) => void }) {
   const [formData, setFormData] = useState({
     title: '',
@@ -576,12 +809,15 @@ function AddTemplateModal({ onClose, onSuccess }: { onClose: () => void; onSucce
             <input
               type="text"
               required
-              maxLength={255}
+              maxLength={200}
               value={formData.title}
               onChange={(e) => setFormData({ ...formData, title: e.target.value })}
               className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-purple-500"
               placeholder="Например: Подтверждение получения"
             />
+            <div className="text-xs text-gray-500 mt-1">
+              {formData.title.length} / 200 символов
+            </div>
           </div>
 
           <div>
@@ -590,14 +826,14 @@ function AddTemplateModal({ onClose, onSuccess }: { onClose: () => void; onSucce
             </label>
             <textarea
               required
-              maxLength={1000}
+              maxLength={2000}
               value={formData.body}
               onChange={(e) => setFormData({ ...formData, body: e.target.value })}
               className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-purple-500 h-32 resize-none"
               placeholder="Ваше письмо отправлено на обработку"
             />
             <div className="text-xs text-gray-500 mt-1">
-              {formData.body.length} / 1000 символов
+              {formData.body.length} / 2000 символов
             </div>
           </div>
 
@@ -632,10 +868,10 @@ function AddTemplateModal({ onClose, onSuccess }: { onClose: () => void; onSucce
               className="flex-1 px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 disabled:bg-gray-400"
             >
               {loading ? 'Создание...' : 'Создать'}
-        </button>
+            </button>
           </div>
         </form>
       </div>
-      </div>
-    );
-  }
+    </div>
+  );
+}

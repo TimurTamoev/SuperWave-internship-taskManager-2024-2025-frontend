@@ -1,5 +1,5 @@
 import api from "./api";
-import { ResponseTemplate, ResponseTemplateCreate, EmailResponseAttachment, EmailResponseAttachmentCreate } from "../types/template";
+import { ResponseTemplate, ResponseTemplateCreate, ResponseTemplateUpdate, EmailResponseAttachment, EmailResponseAttachmentCreate } from "../types/template";
 
 export const templateService = {
   async getAllTemplates(): Promise<ResponseTemplate[]> {
@@ -15,6 +15,16 @@ export const templateService = {
   async createTemplate(templateData: ResponseTemplateCreate): Promise<ResponseTemplate> {
     const token = localStorage.getItem('access_token');
     const response = await api.post<ResponseTemplate>("/responses/response/create", templateData, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return response.data;
+  },
+
+  async updateTemplate(templateId: number, templateData: ResponseTemplateUpdate): Promise<ResponseTemplate> {
+    const token = localStorage.getItem('access_token');
+    const response = await api.put<ResponseTemplate>(`/responses/response/${templateId}`, templateData, {
       headers: {
         Authorization: `Bearer ${token}`,
       },

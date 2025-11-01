@@ -2,7 +2,7 @@ import { EmailMessage } from '../types/email';
 
 const EMAIL_CACHE_PREFIX = 'cached_emails_';
 const CACHE_TIMESTAMP_PREFIX = 'emails_cache_timestamp_';
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const CACHE_DURATION = 5 * 60 * 1000;
 
 export const emailCache = {
   save: (emails: EmailMessage[], userId: number) => {

@@ -1,44 +1,125 @@
 # SW Task Manager - Frontend
 
-React + Vite + TypeScript + TailwindCSS frontend.
+Фронтенд приложения для управления задачами на базе электронной почты.
 
-## Setup
+## Описание
+
+SW Task Manager - это современное веб-приложение для управления задачами с интеграцией электронной почты. Система позволяет:
+- Просматривать и управлять входящими письмами
+- Создавать и использовать шаблоны ответов
+- Прикреплять шаблоны к письмам для быстрого реагирования
+- Управлять пользователями (для администраторов)
+
+## Быстрый старт
+
+### Предварительные требования
+
+- Node.js 18.x или выше
+- npm 9.x или выше
+
+### Установка
 
 ```bash
-# Install dependencies
+# Установка зависимостей
 npm install
 
-# Run development server
+# Запуск сервера разработки
 npm run dev
 
-# Build for production
+# Сборка для продакшена
 npm run build
 
-# Preview production build
+# Просмотр собранной версии
 npm run preview
 ```
 
-The app will run on http://localhost:5173
+Приложение будет доступно по адресу: http://localhost:5173
 
-## Tech Stack
+## Технологический стек
 
-- **React 18** - UI library
-- **TypeScript** - Type safety
-- **Vite** - Build tool and dev server
-- **TailwindCSS** - Utility-first CSS framework
+- **React 18** - Библиотека для создания пользовательского интерфейса
+- **TypeScript** - Статическая типизация
+- **Vite** - Инструмент сборки и dev-сервер
+- **TailwindCSS** - Utility-first CSS фреймворк
+- **Axios** - HTTP клиент для работы с API
 
-## Project Structure
+## Структура проекта
 
 ```
 frontend/
 ├── src/
-│   ├── main.tsx       # Entry point
-│   ├── App.tsx        # Root component
-│   └── index.css      # Global styles
-├── index.html         # HTML template
-├── vite.config.ts     # Vite configuration
-├── tsconfig.json      # TypeScript configuration
-├── tailwind.config.js # Tailwind configuration
-└── package.json       # Dependencies
+│   ├── components/         # React компоненты
+│   │   ├── auth/          # Компоненты аутентификации
+│   │   ├── layout/        # Компоненты макета
+│   │   └── LoginForm.tsx  # Форма входа
+│   ├── pages/             # Страницы приложения
+│   │   ├── AdminPanel.tsx    # Панель администратора
+│   │   ├── Dashboard.tsx     # Главная панель
+│   │   └── EmailsPage.tsx    # Страница писем
+│   ├── services/          # API сервисы
+│   │   ├── adminService.ts
+│   │   ├── api.ts
+│   │   ├── authService.ts
+│   │   ├── emailService.ts
+│   │   └── templateService.ts
+│   ├── types/             # TypeScript типы
+│   │   ├── email.ts
+│   │   ├── template.ts
+│   │   └── user.ts
+│   ├── utils/             # Утилиты
+│   │   └── emailCache.ts
+│   ├── App.tsx            # Главный компонент
+│   ├── main.tsx           # Точка входа
+│   └── index.css          # Глобальные стили
+├── .gitignore
+├── index.html             # HTML шаблон
+├── package.json           # Зависимости
+├── vite.config.ts         # Конфигурация Vite
+├── tsconfig.json          # Конфигурация TypeScript
+├── tailwind.config.js     # Конфигурация TailwindCSS
+└── README.md              # Документация
 ```
+
+## Конфигурация
+
+### Настройка бэкенда
+
+Откройте файл `src/services/api.ts` и установите правильный URL бэкенд-сервера:
+
+```typescript
+const api = axios.create({
+  baseURL: 'http://localhost:8000/api/v1',
+});
+```
+
+Замените `http://localhost:8000` на адрес вашего бэкенд-сервера.
+
+## Скрипты
+
+| Команда | Описание |
+|---------|----------|
+| `npm install` | Установка зависимостей |
+| `npm run dev` | Запуск dev-сервера с hot-reload |
+| `npm run build` | Сборка для продакшена |
+| `npm run preview` | Просмотр собранной версии |
+
+## Развертывание
+
+Подробная инструкция по развертыванию на Windows находится в файле **ИНСТРУКЦИЯ_ПО_РАЗВЕРТЫВАНИЮ.md**
+
+## Разработка
+
+### Добавление новых компонентов
+
+Создайте файл компонента в соответствующей директории:
+- `src/components/` - переиспользуемые компоненты
+- `src/pages/` - страницы приложения
+
+### Добавление новых сервисов
+
+Создайте файл сервиса в `src/services/` и используйте базовый API клиент из `src/services/api.ts`
+
+## Лицензия
+
+Proprietary - All rights reserved
 

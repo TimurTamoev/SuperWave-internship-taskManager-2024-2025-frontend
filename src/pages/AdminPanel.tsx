@@ -62,7 +62,6 @@ export default function AdminPanel({ currentUser, onBack }: AdminPanelProps) {
 
   return (
     <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
-      {/* Header */}
       <nav className="bg-white shadow-sm border-b flex-shrink-0">
         <div className="container mx-auto px-4 py-3 flex justify-between items-center">
           <div className="flex items-center gap-4">
@@ -194,7 +193,6 @@ export default function AdminPanel({ currentUser, onBack }: AdminPanelProps) {
         )}
       </div>
 
-      {/* Create User Modal */}
       {showCreateModal && (
         <CreateUserModal
           onClose={() => setShowCreateModal(false)}
@@ -205,7 +203,6 @@ export default function AdminPanel({ currentUser, onBack }: AdminPanelProps) {
         />
       )}
 
-      {/* Edit User Modal */}
       {editingUser && (
         <EditUserModal
           user={editingUser}
@@ -221,7 +218,6 @@ export default function AdminPanel({ currentUser, onBack }: AdminPanelProps) {
   );
 }
 
-// Create User Modal Component
 function CreateUserModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
   const [formData, setFormData] = useState<UserCreate>({
     email: '',
@@ -238,7 +234,6 @@ function CreateUserModal({ onClose, onSuccess }: { onClose: () => void; onSucces
     setLoading(true);
     setError(null);
 
-    // Validate required fields
     if (!formData.email?.trim() || !formData.username?.trim() || !formData.password?.trim()) {
       setError('Заполните все обязательные поля');
       setLoading(false);
@@ -372,7 +367,6 @@ function CreateUserModal({ onClose, onSuccess }: { onClose: () => void; onSucces
   );
 }
 
-// Edit User Modal Component
 function EditUserModal({ user, onClose, onSuccess, currentUser }: { user: User; onClose: () => void; onSuccess: () => void; currentUser: User }) {
   const [formData, setFormData] = useState<UserUpdate>({
     email: user.email,
@@ -389,14 +383,12 @@ function EditUserModal({ user, onClose, onSuccess, currentUser }: { user: User; 
     setLoading(true);
     setError(null);
 
-    // Validate that email and username are not empty
     if (!formData.email?.trim() || !formData.username?.trim()) {
       setError('Email и имя пользователя не могут быть пустыми');
       setLoading(false);
       return;
     }
 
-    // Prevent admin from deactivating themselves
     if (user.id === currentUser.id && formData.is_active === false) {
       setError('Вы не можете деактивировать свой собственный аккаунт');
       setLoading(false);
